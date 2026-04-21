@@ -431,3 +431,45 @@ body { display: flex; flex-direction: column; }
 }
 .empty-state h3 { margin: 0 0 8px; color: var(--text); }
 .empty-state p { margin: 0 0 20px; }
+
+/* Captcha */
+.captcha-field { margin-top: 4px; }
+.captcha-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+.captcha-question {
+    background: var(--primary-soft);
+    color: var(--primary-dark);
+    padding: 11px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.3px;
+    user-select: none;
+    white-space: nowrap;
+}
+.captcha-row input {
+    flex: 1;
+    padding: 11px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: inherit;
+}
+.captcha-row input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.15);
+}
+.captcha-field small { display: block; margin-top: 6px; font-size: 12px; }
+
+/* Result header right side */
+.result-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.download-btn { white-space: nowrap; }

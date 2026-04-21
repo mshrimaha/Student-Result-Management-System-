@@ -1,14 +1,33 @@
 import os
+import io
 import json
+import random
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, session, flash, abort
+from datetime import datetime
+from flask import (
+    Flask, render_template, request, redirect, url_for, session, flash, send_file, abort
+)
 from replit import db
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+)
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-change-me")
 
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+
+INSTITUTION_NAME = os.environ.get("INSTITUTION_NAME", "Replit University")
+INSTITUTION_TAGLINE = os.environ.get(
+    "INSTITUTION_TAGLINE",
+    "Office of the Controller of Examinations",
+)
 
 SUBJECTS = ["Mathematics", "Science", "English", "History", "Computer"]
 STUDENT_PREFIX = "student:"
@@ -117,6 +136,29 @@ def parse_form(form):
     return student_id, name, marks, errors
 
 
+# ---------- Captcha ----------
+
+def generate_captcha():
+    a = random.randint(2, 12)
+    b = random.randint(2, 12)
+    op = random.choice(["+", "-"])
+    answer = a + b if op == "+" else a - b
+    question = f"What is {a} {op} {b}?"
+    session["captcha_answer"] = str(answer)
+    session["captcha_question"] = question
+    return question
+
+
+def verify_captcha(user_answer):
+    expected = session.pop("captcha_answer", None)
+    session.pop("captcha_question", None)
+    if expected is None:
+        return False
+    return user_answer.strip() == expected
+
+
+# ---------- Routes ----------
+
 @app.route("/")
 def home():
     total_students = len(list(db.prefix(STUDENT_PREFIX)))
@@ -127,24 +169,241 @@ def home():
 def results():
     student = None
     stats = None
-    searched_id = ""
+    form_data = {"student_id": "", "full_name": "", "captcha": ""}
+
     if request.method == "POST":
-        searched_id = request.form.get("student_id", "").strip().upper()
-        if not searched_id:
-            flash("Please enter a Student ID.", "error")
+        form_data["student_id"] = request.form.get("student_id", "").strip().upper()
+        form_data["full_name"] = request.form.get("full_name", "").strip()
+        form_data["captcha"] = request.form.get("captcha", "").strip()
+
+        # Verify captcha first (this consumes it regardless)
+        captcha_ok = verify_captcha(form_data["captcha"])
+
+        if not form_data["student_id"] or not form_data["full_name"]:
+            flash("Please enter both your Student ID and full name.", "error")
+        elif not captcha_ok:
+            flash("Captcha answer was incorrect. Please try again.", "error")
         else:
-            student = get_student(searched_id)
-            if student is None:
-                flash(f"No record found for Student ID '{searched_id}'.", "error")
+            record = get_student(form_data["student_id"])
+            if record is None or record.get("name", "").strip().lower() != form_data["full_name"].lower():
+                # Do not reveal whether the ID exists — keep error generic for privacy
+                flash(
+                    "We could not find a result matching that Student ID and name. "
+                    "Please double-check your details.",
+                    "error",
+                )
             else:
+                student = record
                 stats = compute_stats(student.get("marks", {}))
+                # Issue a short-lived token so the same student can download a PDF
+                session["pdf_token"] = {"id": student["id"], "name": student["name"]}
+
+    captcha_question = generate_captcha()
+
     return render_template(
         "results.html",
         student=student,
         stats=stats,
-        searched_id=searched_id,
+        form_data=form_data,
         subjects=SUBJECTS,
+        captcha_question=captcha_question,
     )
+
+
+@app.route("/results/pdf")
+def results_pdf():
+    token = session.get("pdf_token")
+    if not token:
+        flash("Please look up your result before downloading the PDF.", "error")
+        return redirect(url_for("results"))
+
+    student = get_student(token["id"])
+    if student is None or student.get("name", "").strip().lower() != token["name"].strip().lower():
+        flash("Result is no longer available. Please search again.", "error")
+        return redirect(url_for("results"))
+
+    stats = compute_stats(student.get("marks", {}))
+    pdf_buffer = build_marks_card_pdf(student, stats)
+
+    filename = f"marks_card_{student['id']}.pdf"
+    return send_file(
+        pdf_buffer,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
+def build_marks_card_pdf(student, stats):
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        leftMargin=20 * mm,
+        rightMargin=20 * mm,
+        topMargin=18 * mm,
+        bottomMargin=18 * mm,
+        title=f"Marks Card - {student['id']}",
+        author=INSTITUTION_NAME,
+    )
+
+    styles = getSampleStyleSheet()
+    primary = colors.HexColor("#1a2238")
+    accent = colors.HexColor("#3b5bdb")
+    muted = colors.HexColor("#5b6478")
+    soft_bg = colors.HexColor("#eaf0ff")
+
+    title_style = ParagraphStyle(
+        "Title", parent=styles["Heading1"], alignment=TA_CENTER,
+        fontSize=22, textColor=primary, spaceAfter=2, leading=26,
+    )
+    subtitle_style = ParagraphStyle(
+        "Subtitle", parent=styles["Normal"], alignment=TA_CENTER,
+        fontSize=11, textColor=muted, spaceAfter=4,
+    )
+    eyebrow_style = ParagraphStyle(
+        "Eyebrow", parent=styles["Normal"], alignment=TA_CENTER,
+        fontSize=9, textColor=accent, spaceAfter=2,
+        fontName="Helvetica-Bold", letterSpacing=2,
+    )
+    section_style = ParagraphStyle(
+        "Section", parent=styles["Heading3"], fontSize=12,
+        textColor=primary, spaceBefore=10, spaceAfter=6,
+    )
+    label_style = ParagraphStyle(
+        "Label", parent=styles["Normal"], fontSize=9,
+        textColor=muted, fontName="Helvetica",
+    )
+    value_style = ParagraphStyle(
+        "Value", parent=styles["Normal"], fontSize=12,
+        textColor=primary, fontName="Helvetica-Bold", spaceAfter=4,
+    )
+    footer_style = ParagraphStyle(
+        "Footer", parent=styles["Normal"], fontSize=8,
+        textColor=muted, alignment=TA_CENTER,
+    )
+
+    story = []
+
+    # Header
+    story.append(Paragraph(INSTITUTION_NAME.upper(), title_style))
+    story.append(Paragraph(INSTITUTION_TAGLINE, subtitle_style))
+    story.append(Spacer(1, 4))
+    story.append(HRFlowable(width="100%", thickness=1.2, color=accent))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph("OFFICIAL STATEMENT OF MARKS", eyebrow_style))
+    story.append(Spacer(1, 14))
+
+    # Student info block (two columns)
+    issued_on = datetime.now().strftime("%d %b %Y")
+    info_data = [
+        [Paragraph("STUDENT NAME", label_style), Paragraph("STUDENT ID (USN)", label_style)],
+        [Paragraph(student["name"], value_style), Paragraph(student["id"], value_style)],
+        [Paragraph("DATE OF ISSUE", label_style), Paragraph("EXAMINATION", label_style)],
+        [Paragraph(issued_on, value_style), Paragraph("Annual Examination", value_style)],
+    ]
+    info_table = Table(info_data, colWidths=[85 * mm, 85 * mm])
+    info_table.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 10))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#e3e7f0")))
+
+    # Marks table
+    story.append(Paragraph("Subject-wise Marks", section_style))
+    header = ["#", "Subject", "Max Marks", "Marks Obtained", "Result"]
+    rows = [header]
+    for i, subject in enumerate(SUBJECTS, start=1):
+        mark = int(student["marks"].get(subject, 0))
+        rows.append([
+            str(i),
+            subject,
+            "100",
+            str(mark),
+            "Pass" if mark >= 35 else "Fail",
+        ])
+    rows.append(["", Paragraph("<b>TOTAL</b>", styles["Normal"]),
+                 str(stats["max_total"]), str(stats["total"]), ""])
+
+    marks_table = Table(rows, colWidths=[12 * mm, 70 * mm, 28 * mm, 35 * mm, 25 * mm])
+    marks_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), primary),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 9),
+        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+        ("ALIGN", (2, 1), (4, -1), "CENTER"),
+        ("ALIGN", (0, 1), (0, -1), "CENTER"),
+        ("FONTSIZE", (0, 1), (-1, -1), 10),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#f7f9fd")]),
+        ("BACKGROUND", (0, -1), (-1, -1), soft_bg),
+        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d6dcea")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    story.append(marks_table)
+    story.append(Spacer(1, 14))
+
+    # Summary block
+    summary_data = [
+        [
+            Paragraph("PERCENTAGE", label_style),
+            Paragraph("FINAL GRADE", label_style),
+            Paragraph("OVERALL RESULT", label_style),
+        ],
+        [
+            Paragraph(f"<b>{stats['average']}%</b>", value_style),
+            Paragraph(f"<b>{stats['grade']}</b>", value_style),
+            Paragraph(f"<b>{stats['status']}</b>", value_style),
+        ],
+    ]
+    summary_table = Table(summary_data, colWidths=[55 * mm, 55 * mm, 60 * mm])
+    summary_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), soft_bg),
+        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#c5d0ee")),
+        ("INNERGRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#c5d0ee")),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+    ]))
+    story.append(summary_table)
+    story.append(Spacer(1, 30))
+
+    # Signatures
+    sig_data = [
+        ["", "", ""],
+        [
+            Paragraph("_____________________<br/>Class Teacher", footer_style),
+            Paragraph("_____________________<br/>Examination Officer", footer_style),
+            Paragraph("_____________________<br/>Principal", footer_style),
+        ],
+    ]
+    sig_table = Table(sig_data, colWidths=[57 * mm, 57 * mm, 57 * mm])
+    sig_table.setStyle(TableStyle([
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    story.append(sig_table)
+    story.append(Spacer(1, 24))
+    story.append(HRFlowable(width="100%", thickness=0.4, color=colors.HexColor("#d6dcea")))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(
+        f"This is a system-generated document issued by {INSTITUTION_NAME}. "
+        "If any discrepancy is found, contact the examinations office.",
+        footer_style,
+    ))
+
+    doc.build(story)
+    buf.seek(0)
+    return buf
 
 
 @app.route("/login", methods=["GET", "POST"])

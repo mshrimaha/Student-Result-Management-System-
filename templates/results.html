@@ -4,23 +4,54 @@
 {% block content %}
 <section class="page-head">
     <h1>View Your Result</h1>
-    <p class="lead">Enter your Student ID below to look up your latest marks.</p>
+    <p class="lead">For your privacy, please enter both your Student ID and full name, and complete the captcha.</p>
 </section>
 
 <section class="card search-card">
-    <form method="POST" action="{{ url_for('results') }}" class="search-form">
-        <label for="student_id">Student ID</label>
-        <div class="search-row">
+    <form method="POST" action="{{ url_for('results') }}" class="stacked-form">
+        <div class="form-field">
+            <label for="student_id">Student ID (USN)</label>
             <input
                 type="text"
                 id="student_id"
                 name="student_id"
                 placeholder="e.g. S001"
-                value="{{ searched_id }}"
+                value="{{ form_data.student_id }}"
                 required
                 autofocus
             />
-            <button type="submit" class="btn btn-primary">Search</button>
+        </div>
+
+        <div class="form-field">
+            <label for="full_name">Full Name (as registered)</label>
+            <input
+                type="text"
+                id="full_name"
+                name="full_name"
+                placeholder="e.g. Jane Doe"
+                value="{{ form_data.full_name }}"
+                required
+            />
+        </div>
+
+        <div class="form-field captcha-field">
+            <label for="captcha">Security Check</label>
+            <div class="captcha-row">
+                <span class="captcha-question">{{ captcha_question }}</span>
+                <input
+                    type="text"
+                    id="captcha"
+                    name="captcha"
+                    placeholder="Your answer"
+                    autocomplete="off"
+                    required
+                />
+            </div>
+            <small class="muted">Solve the math problem above to prove you are human.</small>
+        </div>
+
+        <div class="form-actions" style="justify-content: flex-start;">
+            <button type="submit" class="btn btn-primary">View Result</button>
         </div>
     </form>
 </section>
@@ -33,9 +64,14 @@
             <h2>{{ student.name }}</h2>
             <p class="muted">Student ID: <strong>{{ student.id }}</strong></p>
         </div>
-        <div class="grade-badge grade-{{ stats.grade|replace('+','plus') }}">
-            <span class="grade-label">Grade</span>
-            <span class="grade-value">{{ stats.grade }}</span>
+        <div class="result-header-right">
+            <div class="grade-badge grade-{{ stats.grade|replace('+','plus') }}">
+                <span class="grade-label">Grade</span>
+                <span class="grade-value">{{ stats.grade }}</span>
+            </div>
+            <a href="{{ url_for('results_pdf') }}" class="btn btn-primary download-btn">
+                Download as PDF
+            </a>
         </div>
     </header>
 
