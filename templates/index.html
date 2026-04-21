@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-text">
+        <span class="eyebrow">Academic Records Portal</span>
+        <h1>Manage and view student results with confidence.</h1>
+        <p class="lead">
+            A simple, reliable system for schools to record marks across {{ subjects|length }} core subjects
+            and let students check their results instantly using their Student ID.
+        </p>
+        <div class="hero-actions">
+            <a href="{{ url_for('results') }}" class="btn btn-primary">View Your Result</a>
+            <a href="{{ url_for('login') }}" class="btn btn-ghost">Admin Login</a>
+        </div>
+    </div>
+    <div class="hero-card">
+        <div class="stat">
+            <span class="stat-value">{{ total_students }}</span>
+            <span class="stat-label">Students on record</span>
+        </div>
+        <div class="stat">
+            <span class="stat-value">{{ subjects|length }}</span>
+            <span class="stat-label">Subjects tracked</span>
+        </div>
+        <ul class="subject-list">
+            {% for subject in subjects %}
+                <li>{{ subject }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</section>
+
+<section class="features">
+    <article class="feature-card">
+        <h3>Public Result Lookup</h3>
+        <p>Anyone can search by Student ID to instantly view marks, totals, average, and grade.</p>
+    </article>
+    <article class="feature-card">
+        <h3>Secure Admin Dashboard</h3>
+        <p>Authorized administrators can add, edit, and remove student records from a single dashboard.</p>
+    </article>
+    <article class="feature-card">
+        <h3>Reliable Storage</h3>
+        <p>Records are persisted in Replit Database — fast, durable, and zero configuration required.</p>
+    </article>
+</section>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard - Student Result Management System{% endblock %}
+
+{% block content %}
+<section class="page-head with-action">
+    <div>
+        <span class="eyebrow">Admin Dashboard</span>
+        <h1>Student Records</h1>
+        <p class="lead">{{ students|length }} student{{ '' if students|length == 1 else 's' }} on file.</p>
+    </div>
+    <a href="{{ url_for('admin_add') }}" class="btn btn-primary">+ Add New Student</a>
+</section>
+
+<section class="card">
+    {% if students %}
+    <div class="table-scroll">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    {% for subject in subjects %}
+                        <th class="num">{{ subject[:4] }}</th>
+                    {% endfor %}
+                    <th class="num">Total</th>
+                    <th class="actions-col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                {% set total = student.marks.values()|map('int')|sum %}
+                <tr>
+                    <td><strong>{{ student.id }}</strong></td>
+                    <td>{{ student.name }}</td>
+                    {% for subject in subjects %}
+                        <td class="num">{{ student.marks.get(subject, '-') }}</td>
+                    {% endfor %}
+                    <td class="num"><strong>{{ total }}</strong></td>
+                    <td class="actions">
+                        <a href="{{ url_for('admin_edit', student_id=student.id) }}" class="btn btn-small">Edit</a>
+                        <form method="POST" action="{{ url_for('admin_delete', student_id=student.id) }}" onsubmit="return confirm('Delete student {{ student.id }}?');" style="display:inline;">
+                            <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <h3>No students yet</h3>
+        <p>Get started by adding your first student record.</p>
+        <a href="{{ url_for('admin_add') }}" class="btn btn-primary">+ Add New Student</a>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

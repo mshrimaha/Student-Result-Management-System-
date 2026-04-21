@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}View Results - Student Result Management System{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <h1>View Your Result</h1>
+    <p class="lead">Enter your Student ID below to look up your latest marks.</p>
+</section>
+
+<section class="card search-card">
+    <form method="POST" action="{{ url_for('results') }}" class="search-form">
+        <label for="student_id">Student ID</label>
+        <div class="search-row">
+            <input
+                type="text"
+                id="student_id"
+                name="student_id"
+                placeholder="e.g. S001"
+                value="{{ searched_id }}"
+                required
+                autofocus
+            />
+            <button type="submit" class="btn btn-primary">Search</button>
+        </div>
+    </form>
+</section>
+
+{% if student %}
+<section class="card result-card">
+    <header class="result-header">
+        <div>
+            <span class="eyebrow">Result Slip</span>
+            <h2>{{ student.name }}</h2>
+            <p class="muted">Student ID: <strong>{{ student.id }}</strong></p>
+        </div>
+        <div class="grade-badge grade-{{ stats.grade|replace('+','plus') }}">
+            <span class="grade-label">Grade</span>
+            <span class="grade-value">{{ stats.grade }}</span>
+        </div>
+    </header>
+
+    <table class="marks-table">
+        <thead>
+            <tr>
+                <th>Subject</th>
+                <th class="num">Marks</th>
+                <th class="num">Out of</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for subject in subjects %}
+            <tr>
+                <td>{{ subject }}</td>
+                <td class="num">{{ student.marks.get(subject, '-') }}</td>
+                <td class="num">100</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td>Total</td>
+                <td class="num"><strong>{{ stats.total }}</strong></td>
+                <td class="num">{{ stats.max_total }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="result-summary">
+        <div>
+            <span class="summary-label">Average</span>
+            <span class="summary-value">{{ stats.average }}%</span>
+        </div>
+        <div>
+            <span class="summary-label">Status</span>
+            <span class="summary-value status-{{ stats.status|lower }}">{{ stats.status }}</span>
+        </div>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

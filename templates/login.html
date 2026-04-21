@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Admin Login - Student Result Management System{% endblock %}
+
+{% block content %}
+<section class="auth-wrapper">
+    <div class="card auth-card">
+        <span class="eyebrow">Restricted Area</span>
+        <h1>Admin Login</h1>
+        <p class="muted">Sign in to manage student records.</p>
+        <form method="POST" action="{{ url_for('login') }}" class="stacked-form">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required autofocus />
+
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required />
+
+            <button type="submit" class="btn btn-primary btn-block">Log in</button>
+        </form>
+        <p class="hint">Default credentials: <code>admin</code> / <code>admin123</code> (set <code>ADMIN_USERNAME</code> and <code>ADMIN_PASSWORD</code> env vars to change).</p>
+    </div>
+</section>
+{% endblock %}
