@@ -1,21 +1,21 @@
 {% extends "base.html" %}
-{% block title %}View Results - Student Result Management System{% endblock %}
+{% block title %}Provisional Result Sheet - VTU Result Management System{% endblock %}
 
 {% block content %}
 <section class="page-head">
-    <h1>View Your Result</h1>
-    <p class="lead">For your privacy, please enter both your Student ID and full name, and complete the captcha.</p>
+    <h1>View Your Provisional Result</h1>
+    <p class="lead">For your privacy, please enter both your USN and full name as registered with the university, then complete the security check.</p>
 </section>
 
 <section class="card search-card">
     <form method="POST" action="{{ url_for('results') }}" class="stacked-form">
         <div class="form-field">
-            <label for="student_id">Student ID (USN)</label>
+            <label for="student_id">USN (University Seat Number)</label>
             <input
                 type="text"
                 id="student_id"
                 name="student_id"
-                placeholder="e.g. S001"
+                placeholder="e.g. 1VT22CS001"
                 value="{{ form_data.student_id }}"
                 required
                 autofocus
@@ -60,13 +60,16 @@
 <section class="card result-card">
     <header class="result-header">
         <div>
-            <span class="eyebrow">Result Slip</span>
+            <span class="eyebrow">Official Provisional Result Sheet</span>
             <h2>{{ student.name }}</h2>
-            <p class="muted">Student ID: <strong>{{ student.id }}</strong></p>
+            <p class="muted">USN: <strong>{{ student.id }}</strong></p>
+            {% if student.college %}
+            <p class="muted">{{ student.college }}</p>
+            {% endif %}
         </div>
         <div class="result-header-right">
             <div class="grade-badge grade-{{ stats.grade|replace('+','plus') }}">
-                <span class="grade-label">Grade</span>
+                <span class="grade-label">Final Grade</span>
                 <span class="grade-value">{{ stats.grade }}</span>
             </div>
             <a href="{{ url_for('results_pdf') }}" class="btn btn-primary download-btn">
@@ -78,17 +81,20 @@
     <table class="marks-table">
         <thead>
             <tr>
-                <th>Subject</th>
+                <th>Course / Subject</th>
                 <th class="num">Marks</th>
                 <th class="num">Out of</th>
+                <th class="num">Grade</th>
             </tr>
         </thead>
         <tbody>
             {% for subject in subjects %}
+            {% set m = student.marks.get(subject, 0) %}
             <tr>
                 <td>{{ subject }}</td>
-                <td class="num">{{ student.marks.get(subject, '-') }}</td>
+                <td class="num">{{ m }}</td>
                 <td class="num">100</td>
+                <td class="num">{{ grade_for(m) }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -97,17 +103,22 @@
                 <td>Total</td>
                 <td class="num"><strong>{{ stats.total }}</strong></td>
                 <td class="num">{{ stats.max_total }}</td>
+                <td class="num"></td>
             </tr>
         </tfoot>
     </table>
 
     <div class="result-summary">
         <div>
-            <span class="summary-label">Average</span>
+            <span class="summary-label">Percentage</span>
             <span class="summary-value">{{ stats.average }}%</span>
         </div>
         <div>
-            <span class="summary-label">Status</span>
+            <span class="summary-label">Final Grade</span>
+            <span class="summary-value">{{ stats.grade }}</span>
+        </div>
+        <div>
+            <span class="summary-label">Result</span>
             <span class="summary-value status-{{ stats.status|lower }}">{{ stats.status }}</span>
         </div>
     </div>

@@ -1,41 +1,51 @@
 {% extends "base.html" %}
-{% block title %}Project Documentation - Student Result Management System{% endblock %}
+{% block title %}Project Documentation - VTU Result Management System{% endblock %}
 
 {% block content %}
 <section class="page-head">
     <span class="eyebrow">Project Manual</span>
     <h1>Project Documentation</h1>
-    <p class="lead">A reviewer's guide to the technologies, grading rules, and security mechanisms that power this Student Result Management System.</p>
+    <p class="lead">A reviewer's guide to the technologies, VTU grading rules, security mechanisms, and institutional branding that power this Student Result Management System.</p>
 </section>
 
 <nav class="card docs-toc">
     <strong>On this page</strong>
     <ul>
-        <li><a href="#overview">1. Overview</a></li>
+        <li><a href="#overview">1. Overview &amp; VTU Simulation</a></li>
         <li><a href="#tech">2. Technologies Used</a></li>
         <li><a href="#structure">3. Project Structure</a></li>
         <li><a href="#data">4. Data Model</a></li>
-        <li><a href="#grading">5. Grading System Logic</a></li>
+        <li><a href="#grading">5. Grading System (VTU 2022 Scheme)</a></li>
         <li><a href="#security">6. Security Features</a></li>
         <li><a href="#pdf">7. PDF Marks Card</a></li>
-        <li><a href="#config">8. Configuration</a></li>
+        <li><a href="#branding">8. Institutional Branding</a></li>
+        <li><a href="#config">9. Configuration</a></li>
     </ul>
 </nav>
 
 <section id="overview" class="card docs-section">
-    <h2>1. Overview</h2>
+    <h2>1. Overview &amp; VTU Simulation</h2>
     <p>
-        This application is a lightweight Student Result Management System built with the Flask
-        web framework. It allows administrators to maintain student records (name, ID and marks
-        across five subjects) and lets students publicly look up their own results using their
-        Student ID and full name as a privacy check. Results can be downloaded as a professionally
-        formatted PDF marks card.
+        This application is designed to <strong>simulate the result management workflow of
+        Visvesvaraya Technological University (VTU)</strong>, Belagavi. It mirrors the way a VTU
+        affiliated college and the Office of the Registrar (Evaluation) might publish provisional
+        results to students after a Semester End Examination.
     </p>
     <p>
-        The two primary user flows are:
+        Although the data is stored locally in Replit Database (rather than the live VTU
+        examination system), the look-and-feel, identifiers, grading scheme, and PDF marks card
+        layout are all modelled on VTU conventions:
     </p>
     <ul>
-        <li><strong>Public lookup</strong> — anyone can visit <code>/results</code>, identify themselves and view or download their marks.</li>
+        <li>Students are identified by their <strong>USN (University Seat Number)</strong>.</li>
+        <li>Marks are graded according to the <strong>VTU CBCS 2022 Scheme</strong> letter-grade table.</li>
+        <li>The downloadable PDF is titled <em>"Official Provisional Result Sheet"</em>, in line with VTU phrasing.</li>
+        <li>Each record carries the student's <strong>college / institute name</strong>, since VTU is an affiliating university.</li>
+    </ul>
+
+    <h3>1.1 User Flows</h3>
+    <ul>
+        <li><strong>Public lookup</strong> — anyone can visit <code>/results</code>, identify themselves with USN + name and download their provisional result.</li>
         <li><strong>Admin management</strong> — an authenticated administrator can add, edit and delete student records from <code>/admin</code>.</li>
     </ul>
 </section>
@@ -45,27 +55,27 @@
     <div class="tech-grid">
         <article class="tech-item">
             <h3>Python 3.11</h3>
-            <p>Modern, well-supported Python runtime — chosen for readability and a rich ecosystem of web and PDF libraries.</p>
+            <p>Modern Python runtime — chosen for readability and a rich ecosystem of web and PDF libraries.</p>
         </article>
         <article class="tech-item">
             <h3>Flask</h3>
-            <p>Minimal Python web framework that provides routing, request handling, sessions and Jinja2 templating without the overhead of a full-stack framework.</p>
+            <p>Minimal Python web framework providing routing, sessions, and Jinja2 templating without the overhead of a full-stack framework.</p>
         </article>
         <article class="tech-item">
             <h3>Jinja2 Templates</h3>
-            <p>HTML is rendered server-side with Jinja2, with a shared <code>base.html</code> layout extended by every page for a consistent header, footer and flash-message system.</p>
+            <p>HTML is rendered server-side, with a shared <code>base.html</code> layout extended by every page.</p>
         </article>
         <article class="tech-item">
             <h3>Replit Database</h3>
-            <p>A managed key-value store accessed via the official <code>replit</code> Python package. Each student is stored under a <code>student:&lt;ID&gt;</code> key as a JSON blob — no schema migrations required.</p>
+            <p>Managed key-value store accessed via the <code>replit</code> Python package. Each student is stored under <code>student:&lt;USN&gt;</code> as a JSON blob.</p>
         </article>
         <article class="tech-item">
             <h3>ReportLab</h3>
-            <p>Pure-Python PDF generation library used to build the official-looking marks card with tables, branded colors, signature lines and metadata.</p>
+            <p>Pure-Python PDF generation library used to produce the official-looking VTU-style provisional result sheet.</p>
         </article>
         <article class="tech-item">
             <h3>Vanilla HTML &amp; CSS</h3>
-            <p>No frontend framework — a single <code>style.css</code> defines the design tokens (colors, spacing, radii) and components for a clean, responsive UI.</p>
+            <p>No frontend framework — a single <code>style.css</code> defines the design tokens and components.</p>
         </article>
     </div>
 </section>
@@ -76,20 +86,22 @@
 templates/           # Jinja2 HTML templates
   base.html          # Shared layout (header, nav, flash messages, footer)
   index.html         # Homepage
-  results.html       # Public result lookup + result slip
+  results.html       # Public result lookup + result sheet
   login.html         # Admin login form
   admin.html         # Admin dashboard listing all students
   edit.html          # Add / edit student form (shared template)
   docs.html          # This documentation page
-static/style.css     # All styling (design tokens, components, layouts)</pre>
+static/style.css     # All styling
+README.md            # Project README</pre>
 </section>
 
 <section id="data" class="card docs-section">
     <h2>4. Data Model</h2>
-    <p>Each student record is stored as a JSON document under the key <code>student:&lt;UPPERCASE_ID&gt;</code>:</p>
+    <p>Each student record is stored under the key <code>student:&lt;UPPERCASE_USN&gt;</code>:</p>
     <pre class="code-block">{
-  "id":   "S001",
-  "name": "Jane Doe",
+  "id":      "1VT22CS001",
+  "name":    "Jane Doe",
+  "college": "RV College of Engineering, Bengaluru",
   "marks": {
     "Mathematics": 92,
     "Science":     88,
@@ -99,57 +111,61 @@ static/style.css     # All styling (design tokens, components, layouts)</pre>
   }
 }</pre>
     <p>
-        The five subjects (<em>Mathematics, Science, English, History, Computer</em>) are defined
-        once as a constant in <code>main.py</code>, so the admin form, results page and PDF all stay
-        in sync if the list ever changes.
+        The <strong>USN</strong> is the primary identifier — it is normalized to uppercase, used as
+        the database key, displayed prominently on every screen, and printed on the PDF marks card.
+        The <strong>college / institute</strong> field is required so that the marks card can show
+        the student's affiliated institution alongside the university name.
     </p>
 </section>
 
 <section id="grading" class="card docs-section">
-    <h2>5. Grading System Logic</h2>
+    <h2>5. Grading System (VTU 2022 Scheme)</h2>
     <p>
-        Whenever a result is displayed (on screen or in the PDF), the system computes the totals
-        and grade on the fly from the stored marks. There is no need to recompute and re-store
-        these values when a record is edited.
+        Whenever a result is displayed (on screen or in the PDF), totals and grades are computed
+        from the stored marks. The system follows the <strong>VTU Choice Based Credit System
+        (CBCS) — 2022 Scheme</strong> letter-grade mapping.
     </p>
-    <h3>5.1 Totals &amp; Average</h3>
-    <ul>
-        <li><strong>Total</strong> = sum of marks across all five subjects.</li>
-        <li><strong>Maximum</strong> = number of subjects × 100 = <strong>500</strong>.</li>
-        <li><strong>Average (%)</strong> = total ÷ number of subjects, rounded to two decimal places.</li>
-    </ul>
 
-    <h3>5.2 Grade Bands</h3>
-    <p>The final grade is derived from the average:</p>
+    <h3>5.1 Letter Grades</h3>
+    <p>For each subject and for the overall percentage, the letter grade is derived from the marks as follows:</p>
     <table class="data-table grading-table">
         <thead>
-            <tr><th>Average (%)</th><th>Grade</th><th>Description</th></tr>
+            <tr><th>Marks (out of 100)</th><th>Grade</th><th>Description</th></tr>
         </thead>
         <tbody>
-            <tr><td>90 – 100</td><td><strong>A+</strong></td><td>Outstanding</td></tr>
-            <tr><td>80 – 89</td><td><strong>A</strong></td><td>Excellent</td></tr>
-            <tr><td>70 – 79</td><td><strong>B</strong></td><td>Very Good</td></tr>
-            <tr><td>60 – 69</td><td><strong>C</strong></td><td>Good</td></tr>
-            <tr><td>50 – 59</td><td><strong>D</strong></td><td>Satisfactory</td></tr>
-            <tr><td>Below 50</td><td><strong>F</strong></td><td>Fail</td></tr>
+            <tr><td>90 – 100</td><td><strong>O</strong></td><td>Outstanding</td></tr>
+            <tr><td>80 – 89</td><td><strong>A+</strong></td><td>Excellent</td></tr>
+            <tr><td>70 – 79</td><td><strong>A</strong></td><td>Very Good</td></tr>
+            <tr><td>60 – 69</td><td><strong>B+</strong></td><td>Good</td></tr>
+            <tr><td>50 – 59</td><td><strong>B</strong></td><td>Above Average</td></tr>
+            <tr><td>45 – 49</td><td><strong>C</strong></td><td>Average</td></tr>
+            <tr><td>40 – 44</td><td><strong>P</strong></td><td>Pass</td></tr>
+            <tr><td>Below 40</td><td><strong>F</strong></td><td>Fail</td></tr>
         </tbody>
     </table>
 
+    <h3>5.2 Totals &amp; Percentage</h3>
+    <ul>
+        <li><strong>Total</strong> = sum of marks across all five subjects.</li>
+        <li><strong>Maximum</strong> = number of subjects × 100 = <strong>500</strong>.</li>
+        <li><strong>Percentage</strong> = total ÷ number of subjects, rounded to two decimal places.</li>
+        <li><strong>Final Grade</strong> = letter grade for the percentage, using the VTU table above.</li>
+    </ul>
+
     <h3>5.3 Pass / Fail Status</h3>
     <p>
-        A student is marked <span class="status-pass"><strong>PASS</strong></span> only if they
-        score at least <strong>35 marks out of 100 in every subject</strong>. Failing in even
-        one subject results in an overall <span class="status-fail"><strong>FAIL</strong></span>,
-        regardless of the average. This is a simple safeguard against a high average masking a
-        single very poor performance.
+        Following VTU's per-subject minimum, a student is marked
+        <span class="status-pass"><strong>PASS</strong></span> only if they score at least
+        <strong>40 out of 100 in every subject</strong>. A score below 40 in any subject results
+        in an overall <span class="status-fail"><strong>FAIL</strong></span>, regardless of the
+        percentage average.
     </p>
 
     <h3>5.4 Input Validation</h3>
-    <p>The admin form enforces these rules before saving a record:</p>
     <ul>
-        <li>Student ID and Name are required and trimmed of whitespace; IDs are normalized to uppercase.</li>
+        <li>USN, Name and College are required and trimmed of whitespace; USNs are normalized to uppercase.</li>
         <li>Marks for every subject are required and must be whole numbers between <strong>0 and 100</strong>.</li>
-        <li>Adding a record with an existing ID is rejected; editing a record to use an ID that already belongs to another student is also rejected.</li>
+        <li>Adding a record with an existing USN is rejected; editing a record to use a USN that already belongs to another student is also rejected.</li>
     </ul>
 </section>
 
@@ -159,74 +175,116 @@ static/style.css     # All styling (design tokens, components, layouts)</pre>
     <h3>6.1 Admin Authentication</h3>
     <p>
         The <code>/admin</code> dashboard and all add / edit / delete routes are protected by a
-        <code>@login_required</code> decorator. Unauthenticated visitors are redirected to
-        <code>/login</code>. Credentials are validated against the <code>ADMIN_USERNAME</code>
-        and <code>ADMIN_PASSWORD</code> environment variables (defaulting to <code>admin</code>
-        / <code>admin123</code> for first-run convenience — these should be changed for any real
-        deployment).
+        <code>@login_required</code> decorator. Credentials are validated against the
+        <code>ADMIN_USERNAME</code> and <code>ADMIN_PASSWORD</code> environment variables
+        (defaulting to <code>admin</code> / <code>admin123</code> for first-run convenience).
     </p>
 
     <h3>6.2 Server-Side Sessions</h3>
     <p>
-        Flask's signed-cookie sessions are used to track the logged-in admin and to remember the
-        student who just successfully looked up a result (so they — and only they — can download
-        the matching PDF). The signing key comes from the <code>SESSION_SECRET</code> environment
-        variable, which is never stored in source code.
+        Flask's signed-cookie sessions track the logged-in admin and remember the student who
+        just successfully looked up a result (so they — and only they — can download the matching
+        PDF). The signing key comes from <code>SESSION_SECRET</code>.
     </p>
 
     <h3>6.3 Two-Factor Result Lookup</h3>
     <p>
-        On the public results page, a student must enter <strong>both</strong> their Student ID
-        <em>and</em> their full registered name to retrieve a result. Even if someone knows or
-        guesses an ID, they cannot view the marks without also knowing the name on file. Error
-        messages are intentionally generic ("we could not find a result matching that Student ID
-        and name") so the form does not reveal whether a given ID exists.
+        On the public results page, a student must enter <strong>both</strong> their USN
+        <em>and</em> their full registered name. Even if someone knows or guesses a USN, they
+        cannot view marks without also knowing the name on file. Error messages are intentionally
+        generic so the form does not reveal whether a given USN exists.
     </p>
 
     <h3>6.4 Math Captcha</h3>
     <p>
-        Each visit to the results page generates a fresh arithmetic challenge (e.g. "What is 7 + 4?")
-        and stores the expected answer in the user's session. The form will only accept a result
-        lookup when the captcha answer matches. After each submission the captcha is consumed and
-        regenerated — a stolen or replayed answer cannot be reused. This blocks naïve scrapers and
-        bots from enumerating IDs.
+        Each visit to the results page generates a fresh arithmetic challenge stored in the
+        session. The form only accepts a lookup when the captcha answer matches, and each captcha
+        is consumed and regenerated on submit so it cannot be replayed. This blocks naïve bots
+        from scraping results by enumerating USNs.
     </p>
 
     <h3>6.5 PDF Download Authorization</h3>
     <p>
-        The PDF route <code>/results/pdf</code> does not accept a Student ID parameter. Instead it
-        reads the ID and name from the session token issued only after a successful captcha-verified
-        lookup, then re-validates that the stored record still matches. This prevents direct-link
-        scraping of arbitrary students' PDFs.
+        The PDF route does not accept a USN parameter. Instead it reads the USN and name from a
+        session token issued only after a successful captcha-verified lookup, then re-validates
+        the stored record. This prevents direct-link scraping of arbitrary students' PDFs.
     </p>
 
     <h3>6.6 Other Hardening</h3>
     <ul>
-        <li>Destructive admin actions (delete student) only respond to <code>POST</code> requests, with a JavaScript confirmation prompt.</li>
-        <li>All user input is escaped automatically by Jinja2's default autoescaping when rendered in HTML.</li>
-        <li>The Replit Database is accessed only through helper functions — there is no raw query string anywhere in the app.</li>
+        <li>Destructive admin actions only respond to <code>POST</code>, with a confirmation prompt.</li>
+        <li>All user input is escaped automatically by Jinja2's default autoescaping.</li>
+        <li>The Replit Database is accessed only through helper functions — no raw query strings.</li>
     </ul>
 </section>
 
 <section id="pdf" class="card docs-section">
     <h2>7. PDF Marks Card</h2>
     <p>
-        After a successful lookup, the student can click <strong>Download as PDF</strong> to receive
-        an official-looking marks card built with ReportLab. The layout includes:
+        After a successful lookup, the student can click <strong>Download as PDF</strong> to
+        receive a VTU-style <em>Official Provisional Result Sheet</em>, built on demand with
+        ReportLab. The layout includes:
     </p>
     <ul>
-        <li>An institution header with name and office tagline (configurable).</li>
-        <li>Student name, ID, date of issue and examination label.</li>
-        <li>A numbered subject-wise marks table showing maximum marks, marks obtained, and per-subject pass/fail.</li>
-        <li>A summary block with overall percentage, final letter grade, and PASS/FAIL status.</li>
-        <li>Signature lines for the Class Teacher, Examination Officer and Principal.</li>
+        <li>University header — name, address, and the Office of the Registrar (Evaluation).</li>
+        <li>The page sub-title <strong>"OFFICIAL PROVISIONAL RESULT SHEET"</strong>.</li>
+        <li>Student details: USN, name, college / institute, scheme (<em>CBCS — 2022 Scheme</em>), date of issue, and examination label.</li>
+        <li>A numbered subject-wise table showing maximum marks, marks obtained, per-subject grade and pass/fail.</li>
+        <li>A summary block with overall percentage, final grade and PASS/FAIL.</li>
+        <li>Signature lines for the Class Teacher, Examination Officer and Registrar (Evaluation).</li>
         <li>A footer noting the document is system-generated.</li>
     </ul>
 </section>
 
+<section id="branding" class="card docs-section">
+    <h2>8. Institutional Branding</h2>
+    <p>
+        The application is shipped pre-branded for <strong>Visvesvaraya Technological
+        University</strong>, but the branding is intentionally not hard-coded throughout the
+        codebase. Three environment variables control how the institution appears on the PDF
+        marks card and other VTU references:
+    </p>
+    <table class="data-table">
+        <thead>
+            <tr><th>Variable</th><th>Default</th><th>Where it appears</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>INSTITUTION_NAME</code></td>
+                <td><code>Visvesvaraya Technological University</code></td>
+                <td>Top heading of the PDF marks card and the footer disclaimer.</td>
+            </tr>
+            <tr>
+                <td><code>INSTITUTION_TAGLINE</code></td>
+                <td><code>Jnana Sangama, Belagavi - 590018, Karnataka</code></td>
+                <td>Address line directly under the university name on the PDF.</td>
+            </tr>
+            <tr>
+                <td><code>INSTITUTION_OFFICE</code></td>
+                <td><code>Office of the Registrar (Evaluation)</code></td>
+                <td>Issuing-office line on the PDF, mirroring VTU's examination wing.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>8.1 How University-specific PDFs are Generated</h3>
+    <ol>
+        <li>When a student successfully looks up their result, a session token (USN + name) is issued.</li>
+        <li>Clicking <strong>Download as PDF</strong> calls <code>/results/pdf</code>, which re-validates that token against the stored record.</li>
+        <li>The handler invokes <code>build_marks_card_pdf()</code>, which uses ReportLab's flowables (<code>Paragraph</code>, <code>Table</code>, <code>HRFlowable</code>) to lay out the document on A4 paper.</li>
+        <li>The header pulls <code>INSTITUTION_NAME</code>, <code>INSTITUTION_TAGLINE</code>, and <code>INSTITUTION_OFFICE</code> from the environment, so the same code can produce a marks card for any university simply by changing those values.</li>
+        <li>The body table is populated from the student's stored record, with letter grades computed via <code>grade_for_marks()</code> using the VTU 2022 Scheme.</li>
+        <li>The completed PDF is streamed back to the browser as <code>marks_card_&lt;USN&gt;.pdf</code>.</li>
+    </ol>
+    <p class="muted">
+        Because the per-student data carries its own <code>college</code> field, a single
+        deployment can issue branded VTU result sheets for students from many different affiliated
+        colleges without any code changes.
+    </p>
+</section>
+
 <section id="config" class="card docs-section">
-    <h2>8. Configuration</h2>
-    <p>The following environment variables tune the application:</p>
+    <h2>9. Configuration</h2>
     <table class="data-table">
         <thead>
             <tr><th>Variable</th><th>Default</th><th>Purpose</th></tr>
@@ -235,8 +293,9 @@ static/style.css     # All styling (design tokens, components, layouts)</pre>
             <tr><td><code>SESSION_SECRET</code></td><td><em>(unset → dev key)</em></td><td>Secret key used to sign Flask session cookies.</td></tr>
             <tr><td><code>ADMIN_USERNAME</code></td><td><code>admin</code></td><td>Admin login username.</td></tr>
             <tr><td><code>ADMIN_PASSWORD</code></td><td><code>admin123</code></td><td>Admin login password.</td></tr>
-            <tr><td><code>INSTITUTION_NAME</code></td><td><code>Replit University</code></td><td>Name shown on the PDF marks card header.</td></tr>
-            <tr><td><code>INSTITUTION_TAGLINE</code></td><td><code>Office of the Controller of Examinations</code></td><td>Subtitle shown on the PDF below the institution name.</td></tr>
+            <tr><td><code>INSTITUTION_NAME</code></td><td><code>Visvesvaraya Technological University</code></td><td>University name on the PDF marks card.</td></tr>
+            <tr><td><code>INSTITUTION_TAGLINE</code></td><td><code>Jnana Sangama, Belagavi - 590018, Karnataka</code></td><td>Address line on the PDF.</td></tr>
+            <tr><td><code>INSTITUTION_OFFICE</code></td><td><code>Office of the Registrar (Evaluation)</code></td><td>Issuing-office line on the PDF.</td></tr>
             <tr><td><code>PORT</code></td><td><code>5000</code></td><td>Port Flask listens on.</td></tr>
         </tbody>
     </table>

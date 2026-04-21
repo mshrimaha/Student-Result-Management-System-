@@ -23,10 +23,17 @@ app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-change-me")
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
 
-INSTITUTION_NAME = os.environ.get("INSTITUTION_NAME", "Replit University")
+INSTITUTION_NAME = os.environ.get(
+    "INSTITUTION_NAME",
+    "Visvesvaraya Technological University",
+)
 INSTITUTION_TAGLINE = os.environ.get(
     "INSTITUTION_TAGLINE",
-    "Office of the Controller of Examinations",
+    "Jnana Sangama, Belagavi - 590018, Karnataka",
+)
+INSTITUTION_OFFICE = os.environ.get(
+    "INSTITUTION_OFFICE",
+    "Office of the Registrar (Evaluation)",
 )
 
 SUBJECTS = ["Mathematics", "Science", "English", "History", "Computer"]
@@ -73,24 +80,32 @@ def list_students():
     return students
 
 
+def grade_for_marks(value):
+    """VTU CBCS (2022 Scheme) letter grade for a single subject score out of 100."""
+    if value >= 90:
+        return "O"
+    if value >= 80:
+        return "A+"
+    if value >= 70:
+        return "A"
+    if value >= 60:
+        return "B+"
+    if value >= 50:
+        return "B"
+    if value >= 45:
+        return "C"
+    if value >= 40:
+        return "P"
+    return "F"
+
+
 def compute_stats(marks):
     values = [int(v) for v in marks.values()]
     total = sum(values)
     count = len(values) or 1
     average = round(total / count, 2)
-    if average >= 90:
-        grade = "A+"
-    elif average >= 80:
-        grade = "A"
-    elif average >= 70:
-        grade = "B"
-    elif average >= 60:
-        grade = "C"
-    elif average >= 50:
-        grade = "D"
-    else:
-        grade = "F"
-    passed = all(v >= 35 for v in values)
+    grade = grade_for_marks(average)
+    passed = all(v >= 40 for v in values)
     return {
         "total": total,
         "max_total": count * 100,
@@ -113,12 +128,15 @@ def login_required(f):
 def parse_form(form):
     student_id = form.get("id", "").strip().upper()
     name = form.get("name", "").strip()
+    college = form.get("college", "").strip()
     marks = {}
     errors = []
     if not student_id:
-        errors.append("Student ID is required.")
+        errors.append("USN is required.")
     if not name:
         errors.append("Student name is required.")
+    if not college:
+        errors.append("College name is required.")
     for subject in SUBJECTS:
         raw = form.get(subject, "").strip()
         if raw == "":
@@ -133,7 +151,7 @@ def parse_form(form):
             errors.append(f"Marks for {subject} must be between 0 and 100.")
             continue
         marks[subject] = value
-    return student_id, name, marks, errors
+    return student_id, name, college, marks, errors
 
 
 # ---------- Captcha ----------
@@ -212,6 +230,7 @@ def results():
         form_data=form_data,
         subjects=SUBJECTS,
         captcha_question=captcha_question,
+        grade_for=grade_for_marks,
     )
 
 
@@ -293,19 +312,23 @@ def build_marks_card_pdf(student, stats):
     # Header
     story.append(Paragraph(INSTITUTION_NAME.upper(), title_style))
     story.append(Paragraph(INSTITUTION_TAGLINE, subtitle_style))
+    story.append(Paragraph(INSTITUTION_OFFICE, subtitle_style))
     story.append(Spacer(1, 4))
     story.append(HRFlowable(width="100%", thickness=1.2, color=accent))
     story.append(Spacer(1, 6))
-    story.append(Paragraph("OFFICIAL STATEMENT OF MARKS", eyebrow_style))
+    story.append(Paragraph("OFFICIAL PROVISIONAL RESULT SHEET", eyebrow_style))
     story.append(Spacer(1, 14))
 
     # Student info block (two columns)
     issued_on = datetime.now().strftime("%d %b %Y")
+    college = student.get("college", "—")
     info_data = [
-        [Paragraph("STUDENT NAME", label_style), Paragraph("STUDENT ID (USN)", label_style)],
-        [Paragraph(student["name"], value_style), Paragraph(student["id"], value_style)],
+        [Paragraph("USN (UNIVERSITY SEAT NUMBER)", label_style), Paragraph("STUDENT NAME", label_style)],
+        [Paragraph(student["id"], value_style), Paragraph(student["name"], value_style)],
+        [Paragraph("COLLEGE / INSTITUTE", label_style), Paragraph("SCHEME", label_style)],
+        [Paragraph(college, value_style), Paragraph("CBCS — 2022 Scheme", value_style)],
         [Paragraph("DATE OF ISSUE", label_style), Paragraph("EXAMINATION", label_style)],
-        [Paragraph(issued_on, value_style), Paragraph("Annual Examination", value_style)],
+        [Paragraph(issued_on, value_style), Paragraph("Semester End Examination", value_style)],
     ]
     info_table = Table(info_data, colWidths=[85 * mm, 85 * mm])
     info_table.setStyle(TableStyle([
@@ -320,7 +343,7 @@ def build_marks_card_pdf(student, stats):
 
     # Marks table
     story.append(Paragraph("Subject-wise Marks", section_style))
-    header = ["#", "Subject", "Max Marks", "Marks Obtained", "Result"]
+    header = ["#", "Course / Subject", "Max", "Marks Obtained", "Grade", "Result"]
     rows = [header]
     for i, subject in enumerate(SUBJECTS, start=1):
         mark = int(student["marks"].get(subject, 0))
@@ -329,19 +352,20 @@ def build_marks_card_pdf(student, stats):
             subject,
             "100",
             str(mark),
-            "Pass" if mark >= 35 else "Fail",
+            grade_for_marks(mark),
+            "P" if mark >= 40 else "F",
         ])
     rows.append(["", Paragraph("<b>TOTAL</b>", styles["Normal"]),
-                 str(stats["max_total"]), str(stats["total"]), ""])
+                 str(stats["max_total"]), str(stats["total"]), "", ""])
 
-    marks_table = Table(rows, colWidths=[12 * mm, 70 * mm, 28 * mm, 35 * mm, 25 * mm])
+    marks_table = Table(rows, colWidths=[10 * mm, 65 * mm, 18 * mm, 30 * mm, 20 * mm, 22 * mm])
     marks_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), primary),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, 0), 9),
         ("ALIGN", (0, 0), (-1, 0), "CENTER"),
-        ("ALIGN", (2, 1), (4, -1), "CENTER"),
+        ("ALIGN", (2, 1), (5, -1), "CENTER"),
         ("ALIGN", (0, 1), (0, -1), "CENTER"),
         ("FONTSIZE", (0, 1), (-1, -1), 10),
         ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#f7f9fd")]),
@@ -387,7 +411,7 @@ def build_marks_card_pdf(student, stats):
         [
             Paragraph("_____________________<br/>Class Teacher", footer_style),
             Paragraph("_____________________<br/>Examination Officer", footer_style),
-            Paragraph("_____________________<br/>Principal", footer_style),
+            Paragraph("_____________________<br/>Registrar (Evaluation)", footer_style),
         ],
     ]
     sig_table = Table(sig_data, colWidths=[57 * mm, 57 * mm, 57 * mm])
@@ -442,22 +466,23 @@ def admin():
 @app.route("/admin/add", methods=["GET", "POST"])
 @login_required
 def admin_add():
-    form_data = {"id": "", "name": "", "marks": {s: "" for s in SUBJECTS}}
+    form_data = {"id": "", "name": "", "college": "", "marks": {s: "" for s in SUBJECTS}}
     if request.method == "POST":
-        student_id, name, marks, errors = parse_form(request.form)
+        student_id, name, college, marks, errors = parse_form(request.form)
         form_data = {
             "id": student_id,
             "name": name,
+            "college": college,
             "marks": {s: request.form.get(s, "") for s in SUBJECTS},
         }
         if not errors and get_student(student_id) is not None:
-            errors.append(f"A student with ID '{student_id}' already exists.")
+            errors.append(f"A student with USN '{student_id}' already exists.")
         if errors:
             for err in errors:
                 flash(err, "error")
         else:
-            save_student({"id": student_id, "name": name, "marks": marks})
-            flash(f"Student '{name}' (ID: {student_id}) added successfully.", "success")
+            save_student({"id": student_id, "name": name, "college": college, "marks": marks})
+            flash(f"Student '{name}' (USN: {student_id}) added successfully.", "success")
             return redirect(url_for("admin"))
     return render_template(
         "edit.html",
@@ -477,25 +502,27 @@ def admin_edit(student_id):
     form_data = {
         "id": student["id"],
         "name": student["name"],
+        "college": student.get("college", ""),
         "marks": {s: str(student["marks"].get(s, "")) for s in SUBJECTS},
     }
     if request.method == "POST":
-        new_id, name, marks, errors = parse_form(request.form)
+        new_id, name, college, marks, errors = parse_form(request.form)
         form_data = {
             "id": new_id,
             "name": name,
+            "college": college,
             "marks": {s: request.form.get(s, "") for s in SUBJECTS},
         }
         if not errors and new_id != student["id"] and get_student(new_id) is not None:
-            errors.append(f"A student with ID '{new_id}' already exists.")
+            errors.append(f"A student with USN '{new_id}' already exists.")
         if errors:
             for err in errors:
                 flash(err, "error")
         else:
             if new_id != student["id"]:
                 delete_student(student["id"])
-            save_student({"id": new_id, "name": name, "marks": marks})
-            flash(f"Student '{name}' (ID: {new_id}) updated successfully.", "success")
+            save_student({"id": new_id, "name": name, "college": college, "marks": marks})
+            flash(f"Student '{name}' (USN: {new_id}) updated successfully.", "success")
             return redirect(url_for("admin"))
     return render_template(
         "edit.html",

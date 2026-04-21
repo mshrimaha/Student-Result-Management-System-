@@ -7,7 +7,7 @@
     <h1>{{ 'Edit Student Record' if mode == 'edit' else 'Add New Student' }}</h1>
     <p class="lead">
         {% if mode == 'edit' %}
-            Updating record for <strong>{{ original_id }}</strong>.
+            Updating record for USN <strong>{{ original_id }}</strong>.
         {% else %}
             Fill in the details below to create a new student record.
         {% endif %}
@@ -18,13 +18,18 @@
     <form method="POST" class="stacked-form">
         <div class="form-grid">
             <div class="form-field">
-                <label for="id">Student ID</label>
-                <input type="text" id="id" name="id" value="{{ form_data.id }}" placeholder="e.g. S001" required />
+                <label for="id">USN (University Seat Number)</label>
+                <input type="text" id="id" name="id" value="{{ form_data.id }}" placeholder="e.g. 1VT22CS001" required />
             </div>
             <div class="form-field">
                 <label for="name">Student Name</label>
                 <input type="text" id="name" name="name" value="{{ form_data.name }}" placeholder="e.g. Jane Doe" required />
             </div>
+        </div>
+
+        <div class="form-field">
+            <label for="college">College / Institute Name</label>
+            <input type="text" id="college" name="college" value="{{ form_data.college }}" placeholder="e.g. RV College of Engineering, Bengaluru" required />
         </div>
 
         <h3 class="section-heading">Marks (out of 100 each)</h3>

@@ -372,7 +372,9 @@ body { display: flex; flex-direction: column; }
 }
 .grade-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
 .grade-value { font-size: 28px; font-weight: 700; }
-.grade-Aplus, .grade-A { background: var(--success-soft); color: var(--success); }
+.grade-O, .grade-Aplus, .grade-A { background: var(--success-soft); color: var(--success); }
+.grade-Bplus, .grade-B { background: var(--primary-soft); color: var(--primary-dark); }
+.grade-C, .grade-P { background: #fff4e0; color: var(--warning); }
 .grade-F { background: var(--danger-soft); color: var(--danger); }
 
 /* Tables */

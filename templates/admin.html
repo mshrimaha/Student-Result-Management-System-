@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Admin Dashboard - Student Result Management System{% endblock %}
+{% block title %}Admin Dashboard - VTU Result Management System{% endblock %}
 
 {% block content %}
 <section class="page-head with-action">
@@ -17,8 +17,9 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>ID</th>
+                    <th>USN</th>
                     <th>Name</th>
+                    <th>College</th>
                     {% for subject in subjects %}
                         <th class="num">{{ subject[:4] }}</th>
                     {% endfor %}
@@ -32,6 +33,7 @@
                 <tr>
                     <td><strong>{{ student.id }}</strong></td>
                     <td>{{ student.name }}</td>
+                    <td>{{ student.get('college', '—') }}</td>
                     {% for subject in subjects %}
                         <td class="num">{{ student.marks.get(subject, '-') }}</td>
                     {% endfor %}
