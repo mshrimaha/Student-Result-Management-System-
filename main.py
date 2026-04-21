@@ -2,12 +2,12 @@ import os
 import io
 import json
 import random
+import sqlite3
 from functools import wraps
 from datetime import datetime
 from flask import (
-    Flask, render_template, request, redirect, url_for, session, flash, send_file, abort
+    Flask, render_template, request, redirect, url_for, session, flash, send_file, abort, g
 )
-from replit import db
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -37,47 +37,106 @@ INSTITUTION_OFFICE = os.environ.get(
 )
 
 SUBJECTS = ["Mathematics", "Science", "English", "History", "Computer"]
-STUDENT_PREFIX = "student:"
+
+# ---------- SQLite storage ----------
+DATABASE_PATH = os.environ.get("DATABASE_PATH", "database.db")
 
 
-def student_key(student_id):
-    return f"{STUDENT_PREFIX}{student_id.strip().upper()}"
+def get_db():
+    """Return a per-request SQLite connection."""
+    conn = getattr(g, "_database", None)
+    if conn is None:
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        g._database = conn
+    return conn
+
+
+@app.teardown_appcontext
+def close_db(exc):
+    conn = getattr(g, "_database", None)
+    if conn is not None:
+        conn.close()
+
+
+def init_db():
+    """Create the students table if it does not already exist."""
+    conn = sqlite3.connect(DATABASE_PATH)
+    try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS students (
+                id      TEXT PRIMARY KEY,
+                name    TEXT NOT NULL,
+                college TEXT NOT NULL DEFAULT '',
+                marks   TEXT NOT NULL
+            )
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _row_to_record(row):
+    if row is None:
+        return None
+    try:
+        marks = json.loads(row["marks"]) if row["marks"] else {}
+    except (TypeError, ValueError):
+        marks = {}
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "college": row["college"] or "",
+        "marks": marks,
+    }
 
 
 def get_student(student_id):
-    key = student_key(student_id)
-    if key in db.keys():
-        raw = db[key]
-        try:
-            return json.loads(raw) if isinstance(raw, str) else dict(raw)
-        except Exception:
-            return dict(raw) if hasattr(raw, "items") else None
-    return None
+    sid = student_id.strip().upper()
+    cur = get_db().execute(
+        "SELECT id, name, college, marks FROM students WHERE id = ?", (sid,)
+    )
+    return _row_to_record(cur.fetchone())
 
 
 def save_student(record):
-    db[student_key(record["id"])] = json.dumps(record)
+    sid = record["id"].strip().upper()
+    conn = get_db()
+    conn.execute(
+        """
+        INSERT INTO students (id, name, college, marks)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            college = excluded.college,
+            marks = excluded.marks
+        """,
+        (sid, record["name"], record.get("college", ""), json.dumps(record.get("marks", {}))),
+    )
+    conn.commit()
 
 
 def delete_student(student_id):
-    key = student_key(student_id)
-    if key in db.keys():
-        del db[key]
-        return True
-    return False
+    sid = student_id.strip().upper()
+    conn = get_db()
+    cur = conn.execute("DELETE FROM students WHERE id = ?", (sid,))
+    conn.commit()
+    return cur.rowcount > 0
 
 
 def list_students():
-    students = []
-    for key in db.prefix(STUDENT_PREFIX):
-        raw = db[key]
-        try:
-            data = json.loads(raw) if isinstance(raw, str) else dict(raw)
-            students.append(data)
-        except Exception:
-            continue
-    students.sort(key=lambda s: s.get("id", ""))
-    return students
+    cur = get_db().execute(
+        "SELECT id, name, college, marks FROM students ORDER BY id ASC"
+    )
+    return [_row_to_record(row) for row in cur.fetchall()]
+
+
+def count_students():
+    cur = get_db().execute("SELECT COUNT(*) AS n FROM students")
+    return cur.fetchone()["n"]
 
 
 def grade_for_marks(value):
@@ -184,7 +243,7 @@ def docs():
 
 @app.route("/")
 def home():
-    total_students = len(list(db.prefix(STUDENT_PREFIX)))
+    total_students = count_students()
     return render_template("index.html", total_students=total_students, subjects=SUBJECTS)
 
 
@@ -542,6 +601,8 @@ def admin_delete(student_id):
         flash(f"No record found for Student ID '{student_id}'.", "error")
     return redirect(url_for("admin"))
 
+
+init_db()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

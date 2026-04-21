@@ -32,7 +32,7 @@
         results to students after a Semester End Examination.
     </p>
     <p>
-        Although the data is stored locally in Replit Database (rather than the live VTU
+        Although the data is stored locally in a SQLite database file (rather than the live VTU
         examination system), the look-and-feel, identifiers, grading scheme, and PDF marks card
         layout are all modelled on VTU conventions:
     </p>
@@ -66,8 +66,8 @@
             <p>HTML is rendered server-side, with a shared <code>base.html</code> layout extended by every page.</p>
         </article>
         <article class="tech-item">
-            <h3>Replit Database</h3>
-            <p>Managed key-value store accessed via the <code>replit</code> Python package. Each student is stored under <code>student:&lt;USN&gt;</code> as a JSON blob.</p>
+            <h3>SQLite</h3>
+            <p>File-based relational database accessed through Python's built-in <code>sqlite3</code> module. All records persist to a single <code>database.db</code> file alongside the app, so the project can be hosted on any free platform with no external database setup.</p>
         </article>
         <article class="tech-item">
             <h3>ReportLab</h3>
@@ -82,7 +82,8 @@
 
 <section id="structure" class="card docs-section">
     <h2>3. Project Structure</h2>
-    <pre class="code-block">main.py              # Flask app, routes, storage helpers, PDF builder
+    <pre class="code-block">main.py              # Flask app, routes, SQLite storage helpers, PDF builder
+database.db          # SQLite database file (auto-created on first run)
 templates/           # Jinja2 HTML templates
   base.html          # Shared layout (header, nav, flash messages, footer)
   index.html         # Homepage
@@ -97,7 +98,17 @@ README.md            # Project README</pre>
 
 <section id="data" class="card docs-section">
     <h2>4. Data Model</h2>
-    <p>Each student record is stored under the key <code>student:&lt;UPPERCASE_USN&gt;</code>:</p>
+    <p>
+        Records live in a single SQLite table called <code>students</code>, created automatically
+        on first run inside <code>database.db</code>:
+    </p>
+    <pre class="code-block">CREATE TABLE students (
+    id      TEXT PRIMARY KEY,   -- USN, normalized to uppercase
+    name    TEXT NOT NULL,
+    college TEXT NOT NULL DEFAULT '',
+    marks   TEXT NOT NULL       -- JSON blob: { "Mathematics": 92, ... }
+);</pre>
+    <p>The application loads each row into a Python dictionary that looks like this:</p>
     <pre class="code-block">{
   "id":      "1VT22CS001",
   "name":    "Jane Doe",
@@ -112,9 +123,17 @@ README.md            # Project README</pre>
 }</pre>
     <p>
         The <strong>USN</strong> is the primary identifier — it is normalized to uppercase, used as
-        the database key, displayed prominently on every screen, and printed on the PDF marks card.
-        The <strong>college / institute</strong> field is required so that the marks card can show
-        the student's affiliated institution alongside the university name.
+        the SQLite primary key, displayed prominently on every screen, and printed on the PDF
+        marks card. The <strong>college / institute</strong> field is required so that the marks
+        card can show the student's affiliated institution alongside the university name. Marks
+        are stored as a JSON string in the <code>marks</code> column so that the list of subjects
+        can evolve without requiring schema migrations.
+    </p>
+    <p>
+        Because everything lives in a single <code>database.db</code> file on disk, deploying to
+        any free host (Render, Railway, Fly.io, PythonAnywhere, a personal VPS, etc.) is just a
+        matter of running the app — the file will be created on first start and persist across
+        restarts on any host with a writable filesystem.
     </p>
 </section>
 
@@ -214,7 +233,7 @@ README.md            # Project README</pre>
     <ul>
         <li>Destructive admin actions only respond to <code>POST</code>, with a confirmation prompt.</li>
         <li>All user input is escaped automatically by Jinja2's default autoescaping.</li>
-        <li>The Replit Database is accessed only through helper functions — no raw query strings.</li>
+        <li>The SQLite database is accessed only through parameterized queries (<code>?</code> placeholders), preventing SQL injection.</li>
     </ul>
 </section>
 
@@ -291,6 +310,7 @@ README.md            # Project README</pre>
         </thead>
         <tbody>
             <tr><td><code>SESSION_SECRET</code></td><td><em>(unset → dev key)</em></td><td>Secret key used to sign Flask session cookies.</td></tr>
+            <tr><td><code>DATABASE_PATH</code></td><td><code>database.db</code></td><td>Path to the SQLite database file. Set this if your host requires a writable directory (e.g. <code>/data/database.db</code>).</td></tr>
             <tr><td><code>ADMIN_USERNAME</code></td><td><code>admin</code></td><td>Admin login username.</td></tr>
             <tr><td><code>ADMIN_PASSWORD</code></td><td><code>admin123</code></td><td>Admin login password.</td></tr>
             <tr><td><code>INSTITUTION_NAME</code></td><td><code>Visvesvaraya Technological University</code></td><td>University name on the PDF marks card.</td></tr>

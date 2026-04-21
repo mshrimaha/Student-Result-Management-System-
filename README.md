@@ -7,8 +7,8 @@ identified by their **USN (University Seat Number)**, and students retrieve thei
 
 > This system is designed to **simulate the VTU (Visvesvaraya Technological University)
 > result management workflow**. It is not connected to the live VTU examination system —
-> all data is stored locally in Replit Database — but the identifiers, grading scheme,
-> and PDF layout follow VTU conventions.
+> all data is stored in a local **SQLite** file (`database.db`) — but the identifiers,
+> grading scheme, and PDF layout follow VTU conventions.
 
 ## Features
 
@@ -16,15 +16,70 @@ identified by their **USN (University Seat Number)**, and students retrieve thei
 - **Admin dashboard** — protected CRUD over student records (USN, name, college, marks).
 - **VTU-style PDF marks card** — one-click download titled *"Official Provisional Result Sheet"*.
 - **Per-college branding** — every student record carries its own affiliated college / institute.
+- **Portable SQLite storage** — runs on any free Python host without an external database service.
 - **Documentation page** built into the app at `/docs`.
 
 ## Tech Stack
 
 - **Python 3.11** — runtime
 - **Flask** — web framework, sessions, Jinja2 templates
-- **Replit Database** — key-value persistence via the `replit` Python package
+- **SQLite** — file-based relational database via Python's built-in `sqlite3` module
 - **ReportLab** — PDF generation
 - **Vanilla HTML / CSS** — no frontend framework
+
+## Data Storage (SQLite)
+
+All student data is persisted to a single SQLite file named **`database.db`**, created
+automatically the first time the app starts. The schema is intentionally minimal:
+
+```sql
+CREATE TABLE students (
+    id      TEXT PRIMARY KEY,   -- USN, normalized to uppercase
+    name    TEXT NOT NULL,
+    college TEXT NOT NULL DEFAULT '',
+    marks   TEXT NOT NULL       -- JSON blob of subject → marks
+);
+```
+
+In Python, each row is exposed as a dictionary:
+
+```json
+{
+  "id":      "1VT22CS001",
+  "name":    "Jane Doe",
+  "college": "RV College of Engineering, Bengaluru",
+  "marks": {
+    "Mathematics": 92,
+    "Science":     88,
+    "English":     76,
+    "History":     81,
+    "Computer":    95
+  }
+}
+```
+
+Storing the marks as a JSON column keeps the schema flexible — the list of subjects can
+change without a migration.
+
+### Hosting on a free platform
+
+Because the database is just a file on disk, you can deploy this project on any free
+Python host (Render, Railway, Fly.io, PythonAnywhere, a personal VPS, etc.) without
+provisioning a separate database. Steps are typically:
+
+1. Push this repository to GitHub.
+2. Create a new **Web Service** on your chosen host, pointing it at the repo.
+3. Use `pip install -r requirements.txt` (or rely on the `pyproject.toml`) as the build command.
+4. Use `python main.py` as the start command. The host's `PORT` environment variable is honoured.
+5. If your host gives you a persistent disk (e.g. Render's "Disk", Fly.io volumes), point
+   `DATABASE_PATH` at a file inside that disk (e.g. `/data/database.db`) so the data
+   survives restarts and re-deploys.
+
+> A minimal `requirements.txt` for hosts that need it:
+> ```
+> flask>=3.1
+> reportlab>=4.4
+> ```
 
 ## Grading Criteria — VTU CBCS 2022 Scheme
 
@@ -76,14 +131,11 @@ environment variables:
    are computed via `grade_for_marks()` using the VTU table above.
 6. The finished PDF is streamed to the browser as `marks_card_<USN>.pdf`.
 
-Because the **college / institute** field lives on each student record, a single
-deployment of the app can issue branded VTU result sheets for students from many
-different affiliated colleges with no code changes.
-
 ## Project Structure
 
 ```
-main.py              # Flask app, routes, storage helpers, PDF builder
+main.py              # Flask app, routes, SQLite helpers, PDF builder
+database.db          # SQLite database file (auto-created)
 templates/           # Jinja2 HTML templates
   base.html          # Shared layout
   index.html         # Homepage
@@ -96,40 +148,25 @@ static/style.css     # All styling
 README.md            # This file
 ```
 
-## Data Model
-
-Each student is stored under the key `student:<UPPERCASE_USN>`:
-
-```json
-{
-  "id":      "1VT22CS001",
-  "name":    "Jane Doe",
-  "college": "RV College of Engineering, Bengaluru",
-  "marks": {
-    "Mathematics": 92,
-    "Science":     88,
-    "English":     76,
-    "History":     81,
-    "Computer":    95
-  }
-}
-```
-
 ## Running Locally
 
-The workflow `Start application` runs `python main.py` on port 5000.
+```
+pip install flask reportlab
+python main.py
+```
 
-Default admin credentials are `admin` / `admin123` — change them by setting
-`ADMIN_USERNAME` and `ADMIN_PASSWORD`.
+The app listens on `http://localhost:5000`. Default admin credentials are
+`admin` / `admin123` — change them by setting `ADMIN_USERNAME` and `ADMIN_PASSWORD`.
 
 ## Configuration Reference
 
-| Variable               | Default                                                | Purpose                                       |
-|------------------------|--------------------------------------------------------|-----------------------------------------------|
-| `SESSION_SECRET`       | *(dev key)*                                            | Flask session signing key.                    |
-| `ADMIN_USERNAME`       | `admin`                                                | Admin login username.                         |
-| `ADMIN_PASSWORD`       | `admin123`                                             | Admin login password.                         |
-| `INSTITUTION_NAME`     | `Visvesvaraya Technological University`                | University name on the PDF.                   |
-| `INSTITUTION_TAGLINE`  | `Jnana Sangama, Belagavi - 590018, Karnataka`          | Address line on the PDF.                      |
-| `INSTITUTION_OFFICE`   | `Office of the Registrar (Evaluation)`                 | Issuing-office line on the PDF.               |
-| `PORT`                 | `5000`                                                 | Port Flask listens on.                        |
+| Variable               | Default                                                | Purpose                                          |
+|------------------------|--------------------------------------------------------|--------------------------------------------------|
+| `SESSION_SECRET`       | *(dev key)*                                            | Flask session signing key.                       |
+| `DATABASE_PATH`        | `database.db`                                          | Path to the SQLite database file on disk.        |
+| `ADMIN_USERNAME`       | `admin`                                                | Admin login username.                            |
+| `ADMIN_PASSWORD`       | `admin123`                                             | Admin login password.                            |
+| `INSTITUTION_NAME`     | `Visvesvaraya Technological University`                | University name on the PDF.                      |
+| `INSTITUTION_TAGLINE`  | `Jnana Sangama, Belagavi - 590018, Karnataka`          | Address line on the PDF.                         |
+| `INSTITUTION_OFFICE`   | `Office of the Registrar (Evaluation)`                 | Issuing-office line on the PDF.                  |
+| `PORT`                 | `5000`                                                 | Port Flask listens on.                           |
