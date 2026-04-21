@@ -159,6 +159,11 @@ def verify_captcha(user_answer):
 
 # ---------- Routes ----------
 
+@app.route("/docs")
+def docs():
+    return render_template("docs.html")
+
+
 @app.route("/")
 def home():
     total_students = len(list(db.prefix(STUDENT_PREFIX)))
