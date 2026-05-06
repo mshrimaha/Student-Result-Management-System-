@@ -1,3 +1,7 @@
+🔗 Live Demo: https://student-result-management-system-v6ii.onrender.com/
+💻 GitHub: https://github.com/mshrimaha/Student-Result-Management-System-
+
+
 # VTU Student Result Management System
 
 A Python Flask web application that simulates the **Visvesvaraya Technological University
@@ -170,3 +174,20 @@ The app listens on `http://localhost:5000`. Default admin credentials are
 | `INSTITUTION_TAGLINE`  | `Jnana Sangama, Belagavi - 590018, Karnataka`          | Address line on the PDF.                         |
 | `INSTITUTION_OFFICE`   | `Office of the Registrar (Evaluation)`                 | Issuing-office line on the PDF.                  |
 | `PORT`                 | `5000`                                                 | Port Flask listens on.                           |
+
+## 👩‍💻 Developer
+Mahashree M — ISE Student, AJIET Mangaluru
+📧 mahashree.m7@gmail.com
+🔗 LinkedIn: linkedin.com/in/mahashree-m-218ba030a
+
+
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+
+
+![Flask](https://img.shields.io/badge/Flask-3.1-green)
+
+
+![SQLite](https://img.shields.io/badge/Database-SQLite-lightgrey)
+
+
+![Render](https://img.shields.io/badge/Deployed-Render-purple)
